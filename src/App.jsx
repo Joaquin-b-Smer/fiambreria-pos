@@ -8,7 +8,9 @@ function parseSystel(code) {
   const importe = parseInt(code.substring(6, 12), 10)
   return { plu, importe }
 }
-function getCosto(p) { return p.costo_kg ?? p["costo kg"] ?? p.Costo_kg ?? 0 }
+function getCosto(p) { 
+  return p.costo_kg ?? p["costo kg"] ?? 0 
+}
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -27,21 +29,28 @@ export default function App() {
   const gananciaTotal = carrito.reduce((a,b)=>a+b.ganancia, 0)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s))
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setMsg('')
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s)
+      setMsg('')
+    })
     return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => { if(session) cargar() }, [session])
+
   const cargar = async () => {
     const { data } = await supabase.from('productos').select('*').order('plu')
     if(data) setProductos(data)
   }
 
   const login = async () => {
+    setMsg('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if(error) setMsg('❌ ' + error.message)
-    else setMsg('✅ Entrando...')
   }
   const logout = async () => { await supabase.auth.signOut(); setCarrito([]) }
   
@@ -99,7 +108,6 @@ export default function App() {
         <input placeholder="Contraseña" type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} style={{width:'100%', padding:'12px', margin:'10px 0', fontSize:'16px'}} />
         <button onClick={login} style={{width:'100%', padding:'15px', background:'black', color:'white', fontSize:'18px', fontWeight:'bold', cursor:'pointer'}}>ENTRAR</button>
         {msg && <div style={{marginTop:'15px', background:'yellow', padding:'10px'}}>{msg}</div>}
-        <div style={{marginTop:'20px', fontSize:'12px', color:'#666'}}>Creá el usuario en Supabase > Authentication > Users</div>
       </div>
     )
   }
@@ -111,20 +119,17 @@ export default function App() {
         <h1 style={{margin:0, fontSize:'18px'}}>LO DE ANY - POS v2.5</h1>
         <div><span style={{fontSize:'12px', marginRight:'10px'}}>{session.user.email}</span><button onClick={logout} style={{padding:'5px 10px', cursor:'pointer'}}>Salir</button></div>
       </div>
-      
       <div className="no-print" style={{display:'flex', gap:'8px', margin:'15px 0', flexWrap:'wrap'}}>
         <button onClick={()=>setShowAdd(true)} style={{padding:'12px 16px', background:'#22c55e', color:'white', fontWeight:'bold', border:'none', cursor:'pointer', borderRadius:'6px'}}> + PRODUCTO </button>
         <button onClick={cargarResumen} style={{padding:'12px 16px', background:'#3b82f6', color:'white', fontWeight:'bold', border:'none', cursor:'pointer', borderRadius:'6px'}}> 📊 RESUMEN </button>
       </div>
-
       {showResumen && (
         <div className="no-print" style={{border:'3px solid #3b82f6', padding:'20px', marginBottom:'20px', background:'#eff6ff', borderRadius:'8px'}}>
           <div style={{display:'flex', justifyContent:'space-between'}}><h3 style={{marginTop:0}}>📊 Hoy {new Date().toLocaleDateString()}</h3><button onClick={()=>setShowResumen(false)}>X</button></div>
           <h2>${totalDia} vendido | G: ${gananciaDia} | Tickets: {ventasDia.length}</h2>
-          {ventasDia.map((v,i)=><div key={i} style={{display:'flex', justifyContent:'space-between', borderBottom:'1px solid #ccc', padding:'6px 0', fontSize:'14px'}}><span>{new Date(v.created_at).toLocaleTimeString()}</span><span><b>${v.total}</b> (G:${v.ganancia})</span></div>)}
+          {ventasDia.map((v,i)=><div key={i} style={{display:'flex', justifyContent:'space-between', borderBottom:'1px solid #ccc', padding:'6px 0', fontSize:'14px'}}><span>{new Date(v.created_at).toLocaleTimeString()}</span><span><b>${v.total}</b> (G:{v.ganancia})</span></div>)}
         </div>
       )}
-
       {showAdd && (
         <div className="no-print" style={{border:'3px solid #22c55e', padding:'20px', marginBottom:'20px', background:'#f0fdf4'}}>
           <h3 style={{marginTop:0}}>Nuevo Producto</h3>
@@ -138,10 +143,8 @@ export default function App() {
           <div style={{marginTop:'15px', display:'flex', gap:'10px'}}><button onClick={guardarProducto} style={{padding:'12px 25px', background:'black', color:'white', cursor:'pointer'}}>GUARDAR</button><button onClick={()=>setShowAdd(false)} style={{padding:'12px 25px', cursor:'pointer'}}>Cancelar</button></div>
         </div>
       )}
-
       <input className="no-print" placeholder="Buscar o ticket Systel..." value={filtro} onChange={e=>handleInput(e.target.value)} autoFocus style={{width:'100%', padding:'15px', fontSize:'18px', marginBottom:'10px', border:'3px solid black'}} />
       {msg && <div className="no-print" style={{padding:'10px', background:'yellow', marginBottom:'10px'}}>{msg}</div>}
-      
       <div className="no-print" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))', gap:'12px'}}>
         {filtro.length < 13 && filtrados.map(p=>(
           <div key={p.plu} style={{position:'relative', border:'2px solid black', background:'white', padding:'12px', textAlign:'center', borderRadius:'6px'}}>
@@ -150,7 +153,6 @@ export default function App() {
           </div>
         ))}
       </div>
-
       <div className="no-print" style={{marginTop:'30px', borderTop:'3px solid black', paddingTop:'20px'}}>
         <h2>Carrito: {carrito.length} - Total ${total} | Ganancia ${gananciaTotal.toFixed(0)}</h2>
         {carrito.map((c,i)=><div key={i} style={{display:'flex', justifyContent:'space-between', borderBottom:'1px solid #ddd', padding:'6px 0'}}><span>{c.nombre} {c.peso}kg</span><span>${c.venta}</span></div>)}
@@ -158,7 +160,6 @@ export default function App() {
         <button onClick={cobrarEImprimir} style={{padding:'15px 30px', background:'black', color:'white', fontSize:'18px', fontWeight:'bold', cursor:'pointer'}}>🖨️ COBRAR + IMPRIMIR</button>
         <button onClick={()=>setCarrito([])} style={{padding:'15px', marginLeft:'10px', cursor:'pointer'}}>Limpiar</button>
       </div>
-
       <div id="ticket" style={{padding:'20px', fontFamily:'monospace', maxWidth:'300px', margin:'0 auto'}}>
         <div style={{textAlign:'center', borderBottom:'2px dashed black', paddingBottom:'10px', marginBottom:'10px'}}><h2 style={{margin:'0'}}>LO DE ANY</h2><div>{new Date().toLocaleString()}</div></div>
         {carrito.map((c,i)=><div key={i} style={{display:'flex', justifyContent:'space-between'}}><span>{c.nombre} {c.peso}kg</span><span>${c.venta}</span></div>)}
